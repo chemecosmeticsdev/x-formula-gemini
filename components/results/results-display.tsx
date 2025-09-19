@@ -1,49 +1,62 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Download, 
-  Printer, 
-  Share2, 
-  Loader2, 
-  AlertCircle, 
-  FlaskConical,
-  Eye,
-  Clock,
-  Shield,
-  DollarSign
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import type { GeneratedFormula, FormData } from "@/lib/types";
+import { Download, Printer, Share, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+
+interface Ingredient {
+  name: string;
+  inci_name: string;
+  percentage: number;
+  function: string;
+  phase: string;
+}
+
+interface Formula {
+  name: string;
+  type: string;
+  description: string;
+  mockup_image: string;
+  ingredients: Ingredient[];
+  instructions: string[];
+  properties: {
+    ph: string;
+    viscosity: string;
+    stability: string;
+    shelfLife: string;
+  };
+  claims: string[];
+  cost_estimate: string;
+}
+
+interface FormData {
+  productDescription: string;
+  productType?: string;
+  targetAudience?: string;
+  budgetRange?: string;
+}
 
 export function ResultsDisplay() {
-  const [formula, setFormula] = useState<GeneratedFormula | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [formula, setFormula] = useState<Formula | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [requestData, setRequestData] = useState<FormData | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get the request data from sessionStorage
-    if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem("formulaRequest");
-      if (stored) {
-        try {
-          const data = JSON.parse(stored) as FormData;
-          setRequestData(data);
-          generateFormula(data);
-        } catch (err) {
-          console.error("Error parsing stored data:", err);
-          setError("Invalid request data");
-          setIsLoading(false);
-        }
-      } else {
-        setError("No product description found. Please go back to the form.");
-        setIsLoading(false);
+    // Get stored data and generate formula
+    const storedData = sessionStorage.getItem('formData');
+    if (storedData) {
+      try {
+        const data = JSON.parse(storedData) as FormData;
+        generateFormula(data);
+      } catch (err) {
+        setError('Failed to retrieve form data');
       }
     }
   }, []);
@@ -72,7 +85,7 @@ export function ResultsDisplay() {
           name: `${data.productType || 'Custom'} Formula`,
           type: data.productType || "Beauty Product", 
           description: `A ${data.productType?.toLowerCase() || 'custom'} formulated based on: ${data.productDescription}`,
-          mockup_image: "https://i.ytimg.com/vi/chkgWO6pg_0/maxresdefault.jpg",
+          mockup_image: "/images/placeholder-mockup.jpg",
           ingredients: [
             { name: "Aqua (Water)", inci_name: "Aqua", percentage: 65.0, function: "solvent", phase: "A" },
             { name: "Glycerin", inci_name: "Glycerin", percentage: 8.0, function: "humectant", phase: "A" },
@@ -156,64 +169,11 @@ export function ResultsDisplay() {
         
         const formulaData = JSON.parse(cleanJson);
         
-        // Generate AI product mockup image using Gemini Image Generation API
-        console.log('🎨 Starting AI product mockup generation...');
-        console.log('🔑 API Key available:', !!GEMINI_API_KEY, 'Length:', GEMINI_API_KEY?.length || 0);
+        // CRITICAL: Generate AI product mockup image 
+        console.log('🎨 DEBUGGING: Starting image generation...');
+        console.log('🔑 API Key status:', GEMINI_API_KEY ? 'AVAILABLE' : 'MISSING');
         
-        try {
-          const imagePrompt = `Professional cosmetics product photography of "${formulaData.name}" - ${formulaData.type}.
-          
-          Product details: ${formulaData.description}
-          User request: ${data.productDescription}
-          
-          Requirements: High-end cosmetics product photography, clean white background, professional studio lighting, luxury packaging design, premium container, commercial product photography style, sharp focus, professional shadows and highlights.
-          
-          Create a marketable cosmetics product image suitable for e-commerce.`;
-
-          console.log('📝 Image prompt created');
-          
-          const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImage';
-          const fullUrl = apiUrl + '?key=' + GEMINI_API_KEY;
-          
-          const response = await fetch(fullUrl, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              prompt: imagePrompt,
-              imageGenerationConfig: {
-                aspectRatio: "4:3",
-                negativePrompt: "blurry, low quality, text, watermark, logo, amateur, cartoon, anime, drawing, sketch"
-              }
-            })
-          });
-
-          console.log('📡 Image API response status:', response.status);
-          
-          if (response.ok) {
-            const result = await response.json();
-            console.log('📦 Image API response:', result);
-            
-            const imageData = result.candidates?.[0]?.image?.bytesBase64Jpeg;
-            if (imageData) {
-              formulaData.mockup_image = `data:image/jpeg;base64,${imageData}`;
-              console.log('✅ AI image generated successfully!');
-            } else {
-              console.warn('❌ No image data in response');
-              formulaData.mockup_image = "/images/placeholder-mockup.jpg";
-            }
-          } else {
-            const errorText = await response.text();
-            console.error('❌ Image API error:', response.status, errorText);
-            formulaData.mockup_image = "/images/placeholder-mockup.jpg";
-          }
-          
-        } catch (error) {
-          console.error('💥 Image generation error:', error);
-          formulaData.mockup_image = "/images/placeholder-mockup.jpg";
-        }
+        await generateProductImage(formulaData, data, GEMINI_API_KEY);
         
         setFormula(formulaData);
       } catch (parseError) {
@@ -231,58 +191,148 @@ export function ResultsDisplay() {
     }
   };
 
+  // CRITICAL FUNCTION: AI Image Generation
+  async function generateProductImage(formulaData: any, userInput: any, apiKey: string) {
+    console.log('🎨 Starting AI image generation process...');
+    
+    // Test API key first
+    console.log('🔑 Testing API key with basic call...');
+    try {
+      const testResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Hello' }] }]
+        })
+      });
+      console.log('🔍 API Key test result:', testResponse.status, testResponse.ok ? 'SUCCESS' : 'FAILED');
+      
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        console.error('🚨 API Key test error:', errorText);
+        formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+        return;
+      }
+    } catch (testError) {
+      console.error('🚨 API Key test failed:', testError);
+      formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+      return;
+    }
+
+    console.log('✅ API Key is valid, proceeding with image generation...');
+    
+    // Create image prompt
+    const imagePrompt = `Professional cosmetics product photography: "${formulaData.name}" - ${formulaData.type}. Clean white background, studio lighting, luxury packaging, commercial product shot for ${userInput.productDescription}`;
+    
+    console.log('📝 Image prompt created:', imagePrompt.substring(0, 100) + '...');
+    
+    // Try different possible endpoints
+    const imageEndpoints = [
+      'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImage',
+      'https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-001:generateImage',
+      'https://generativelanguage.googleapis.com/v1beta/models/imagegeneration-004:generateImage'
+    ];
+
+    for (let i = 0; i < imageEndpoints.length; i++) {
+      const endpoint = imageEndpoints[i];
+      console.log(`🌐 Trying image endpoint ${i + 1}: ${endpoint}`);
+      
+      try {
+        const response = await fetch(`${endpoint}?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: imagePrompt,
+            imageGenerationConfig: {
+              aspectRatio: "4:3",
+              negativePrompt: "blurry, low quality"
+            }
+          })
+        });
+
+        console.log(`📡 Image API ${i + 1} response:`, response.status, response.statusText);
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('📦 Image API response keys:', Object.keys(result));
+          console.log('🖼️ Full response:', JSON.stringify(result, null, 2));
+          
+          const imageData = result.candidates?.[0]?.image?.bytesBase64Jpeg;
+          if (imageData) {
+            formulaData.mockup_image = `data:image/jpeg;base64,${imageData}`;
+            console.log('✅ SUCCESS: AI image generated!');
+            return;
+          } else {
+            console.warn('❌ No image data in successful response');
+          }
+        } else {
+          const errorText = await response.text();
+          console.error(`❌ Image API ${i + 1} error:`, response.status, errorText);
+        }
+      } catch (error) {
+        console.error(`❌ Image endpoint ${i + 1} failed:`, error);
+      }
+    }
+
+    console.warn('🔄 All image generation methods failed, using intelligent placeholder...');
+    
+    // Intelligent placeholder selection
+    const productType = formulaData.type?.toLowerCase() || '';
+    if (productType.includes('serum')) {
+      formulaData.mockup_image = "https://images.unsplash.com/photo-1620916297593-6e5f6e4c2b27?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (productType.includes('cream')) {
+      formulaData.mockup_image = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (productType.includes('oil')) {
+      formulaData.mockup_image = "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+    } else {
+      formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+    }
+    
+    console.log('📸 Using intelligent placeholder for:', productType);
+  }
+
   const handleDownloadPDF = () => {
     toast({
       title: "Feature Coming Soon",
-      description: "PDF download functionality will be available in a future update.",
+      description: "PDF download will be available in the next update.",
     });
   };
 
   const handlePrint = () => {
     toast({
       title: "Feature Coming Soon", 
-      description: "Print functionality will be available in a future update.",
+      description: "Print functionality will be available in the next update.",
     });
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (navigator.share && formula) {
-      try {
-        await navigator.share({
-          title: `Formula: ${formula.name}`,
-          text: `Check out this AI-generated cosmetics formula: ${formula.description}`,
-          url: window.location.href,
-        });
-      } catch (err) {
-        // Fallback to clipboard
-        navigator.clipboard?.writeText(window.location.href);
-        toast({
-          title: "Link Copied",
-          description: "Formula link copied to clipboard!",
-        });
-      }
+      navigator.share({
+        title: formula.name,
+        text: formula.description,
+        url: window.location.href,
+      });
     } else {
-      navigator.clipboard?.writeText(window.location.href);
+      navigator.clipboard.writeText(window.location.href);
       toast({
-        title: "Link Copied", 
-        description: "Formula link copied to clipboard!",
+        title: "Link Copied",
+        description: "Formula link has been copied to clipboard.",
       });
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto" />
-          <h3 className="text-xl font-semibold text-gray-900">Generating Your Formula</h3>
-          <p className="text-gray-600 max-w-md">
-            Our AI is analyzing ingredients and creating your personalized cosmetics formula...
-          </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md">
-            <p className="text-blue-900 text-sm">
-              This typically takes 30-60 seconds for complex formulations
-            </p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
+              <h2 className="text-xl font-semibold mb-2">Generating Your Formula</h2>
+              <p className="text-muted-foreground">
+                Our AI is creating a custom cosmetics formula based on your requirements...
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -291,14 +341,20 @@ export function ResultsDisplay() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <div className="text-center space-y-4 max-w-md">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
-          <h3 className="text-xl font-semibold text-gray-900">Generation Failed</h3>
-          <p className="text-gray-600">{error}</p>
-          <Button onClick={() => window.location.href = "/form"} className="btn-cosmetics">
-            Try Again
-          </Button>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-6">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-red-600 mb-2">Generation Failed</h2>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Link href="/form">
+                <Button>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+              </Link>
+            </div>
+          </Card>
         </div>
       </div>
     );
@@ -306,116 +362,90 @@ export function ResultsDisplay() {
 
   if (!formula) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <div className="text-center space-y-4">
-          <FlaskConical className="h-12 w-12 text-gray-400 mx-auto" />
-          <h3 className="text-xl font-semibold text-gray-900">No Formula Generated</h3>
-          <p className="text-gray-600">Please try generating a new formula.</p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-6">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold mb-2">No Formula Found</h2>
+              <p className="text-muted-foreground mb-4">
+                Please fill out the form to generate your custom formula.
+              </p>
+              <Link href="/form">
+                <Button>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Form
+                </Button>
+              </Link>
+            </div>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="space-y-8"
-    >
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3 justify-center no-print">
-        <Button onClick={handleShare} variant="outline" className="gap-2">
-          <Share2 className="h-4 w-4" />
-          Share Formula
-        </Button>
-        <Button onClick={handleDownloadPDF} variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Download PDF
-        </Button>
-        <Button onClick={handlePrint} variant="outline" className="gap-2">
-          <Printer className="h-4 w-4" />
-          Print Formula
-        </Button>
-      </div>
-
-      {/* Formula Overview */}
-      <div className="formula-grid">
-        {/* Main Formula Info */}
-        <div className="cosmetics-card p-8 md:col-span-2">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">{formula.name}</h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">{formula.description}</p>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{formula.type}</div>
-              <div className="text-sm text-gray-600">Product Type</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{formula.properties.ph}</div>
-              <div className="text-sm text-gray-600">pH Range</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{formula.properties.viscosity}</div>
-              <div className="text-sm text-gray-600">Viscosity</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{formula.cost_estimate}</div>
-              <div className="text-sm text-gray-600">Est. Cost</div>
-            </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Your AI-Generated Formula</h1>
+            <p className="text-muted-foreground">
+              Complete cosmetics formula with ingredients, instructions, and professional analysis
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleShare}>
+              <Share className="w-4 h-4" />
+              <span className="hidden sm:inline ml-2">Share Formula</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline ml-2">Download PDF</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline ml-2">Print Formula</span>
+            </Button>
           </div>
         </div>
 
-        {/* Product Properties */}
-        <div className="cosmetics-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Shield className="h-5 w-5 text-green-600" />
-            <h3 className="text-lg font-semibold">Properties</h3>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div><strong>Stability:</strong> {formula.properties.stability}</div>
-            <div><strong>Shelf Life:</strong> {formula.properties.shelfLife}</div>
-            <div><strong>pH:</strong> {formula.properties.ph}</div>
-            <div><strong>Viscosity:</strong> {formula.properties.viscosity}</div>
-          </div>
-        </div>
-
-        {/* Claims */}
-        <div className="cosmetics-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Eye className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-semibold">Product Claims</h3>
-          </div>
-          <div className="space-y-1">
-            {formula.claims?.map((claim, index) => (
-              <div key={index} className="text-sm text-gray-700 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
-                {claim}
+        {/* Product Overview */}
+        <Card className="p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">{formula.name}</h2>
+              <p className="text-muted-foreground mb-4">{formula.description}</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Badge variant="secondary" className="mb-2">
+                    {formula.type}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">Product Type</p>
+                </div>
+                <div>
+                  <Badge variant="outline" className="mb-2">
+                    {formula.properties.ph}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">pH Range</p>
+                </div>
+                <div>
+                  <Badge variant="outline" className="mb-2">
+                    {formula.properties.viscosity}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">Viscosity</p>
+                </div>
+                <div>
+                  <Badge variant="outline" className="mb-2">
+                    {formula.cost_estimate}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">Est. Cost</p>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Cost Analysis */}
-        <div className="cosmetics-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <DollarSign className="h-5 w-5 text-green-600" />
-            <h3 className="text-lg font-semibold">Cost Analysis</h3>
-          </div>
-          <div className="text-2xl font-bold text-green-600 mb-2">{formula.cost_estimate}</div>
-          <div className="text-sm text-gray-600">
-            Estimated cost per 100g finished product
-          </div>
-        </div>
-
-        {/* Mockup Image */}
-        {formula.mockup_image && (
-          <div className="cosmetics-card p-6 md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <Eye className="h-5 w-5 text-purple-600" />
-              <h3 className="text-lg font-semibold">Product Mockup</h3>
             </div>
-            <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden">
+            
+            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
               <Image
                 src={formula.mockup_image}
                 alt={`${formula.name} product mockup`}
@@ -425,67 +455,112 @@ export function ResultsDisplay() {
               />
             </div>
           </div>
-        )}
+        </Card>
 
-        {/* Ingredients List */}
-        <div className="cosmetics-card p-6 md:col-span-full">
-          <h3 className="text-xl font-semibold text-gray-900 mb-6">Formula Ingredients</h3>
+        {/* Properties & Claims */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Properties</h3>
+            <div className="space-y-3">
+              {Object.entries(formula.properties).map(([key, value]) => (
+                <div key={key} className="flex justify-between">
+                  <span className="capitalize text-muted-foreground">
+                    {key === 'ph' ? 'pH' : key.replace(/([A-Z])/g, ' $1')}:
+                  </span>
+                  <span className="font-medium">{value}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Product Claims</h3>
+            <div className="space-y-2">
+              {formula.claims.map((claim, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                  <span className="text-sm">{claim}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Cost Analysis */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Cost Analysis</h3>
+          <div className="bg-muted/50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-semibold">{formula.cost_estimate}</span>
+              <span className="text-sm text-muted-foreground">
+                Estimated cost per 100g finished product
+              </span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Ingredients */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Formula Ingredients</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-2 font-semibold text-gray-900">Phase</th>
-                  <th className="text-left py-3 px-2 font-semibold text-gray-900">Ingredient</th>
-                  <th className="text-left py-3 px-2 font-semibold text-gray-900">INCI Name</th>
-                  <th className="text-left py-3 px-2 font-semibold text-gray-900">Function</th>
-                  <th className="text-right py-3 px-2 font-semibold text-gray-900">%</th>
+                <tr className="border-b">
+                  <th className="text-left pb-2">Ingredient Name</th>
+                  <th className="text-left pb-2">INCI Name</th>
+                  <th className="text-right pb-2">%</th>
+                  <th className="text-left pb-2">Function</th>
+                  <th className="text-center pb-2">Phase</th>
                 </tr>
               </thead>
               <tbody>
-                {formula.ingredients?.map((ingredient, index) => (
-                  <tr key={index} className="border-b border-gray-100">
-                    <td className="py-3 px-2">
-                      <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                        {ingredient.phase}
-                      </span>
+                {formula.ingredients.map((ingredient, index) => (
+                  <tr key={index} className="border-b border-muted">
+                    <td className="py-2 font-medium">{ingredient.name}</td>
+                    <td className="py-2 text-sm text-muted-foreground">
+                      {ingredient.inci_name}
                     </td>
-                    <td className="py-3 px-2 font-medium text-gray-900">{ingredient.name}</td>
-                    <td className="py-3 px-2 text-gray-600 text-sm">{ingredient.inci_name || "—"}</td>
-                    <td className="py-3 px-2 text-gray-600 text-sm">{ingredient.function}</td>
-                    <td className="py-3 px-2 text-right font-mono font-semibold text-blue-600">
-                      {ingredient.percentage?.toFixed(2)}%
+                    <td className="py-2 text-right font-mono">
+                      {ingredient.percentage.toFixed(1)}%
+                    </td>
+                    <td className="py-2 text-sm capitalize">{ingredient.function}</td>
+                    <td className="py-2 text-center">
+                      <Badge variant="outline" className="text-xs">
+                        {ingredient.phase}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
-                <tr className="border-t-2 border-gray-200 font-semibold">
-                  <td className="py-3 px-2" colSpan={4}>Total</td>
-                  <td className="py-3 px-2 text-right font-mono text-blue-600">
-                    {formula.ingredients?.reduce((sum, ing) => sum + (ing.percentage || 0), 0)?.toFixed(2)}%
-                  </td>
-                </tr>
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
-        {/* Processing Instructions */}
-        <div className="cosmetics-card p-6 md:col-span-full">
-          <div className="flex items-center gap-2 mb-6">
-            <Clock className="h-5 w-5 text-orange-600" />
-            <h3 className="text-xl font-semibold text-gray-900">Processing Instructions</h3>
-          </div>
-          <div className="space-y-4">
-            {formula.instructions?.map((instruction, index) => (
+        {/* Manufacturing Instructions */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Manufacturing Instructions</h3>
+          <div className="space-y-3">
+            {formula.instructions.map((instruction, index) => (
               <div key={index} className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-sm font-semibold">
+                <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-medium">
                   {index + 1}
                 </div>
-                <div className="text-gray-700">{instruction}</div>
+                <p className="text-sm leading-relaxed">{instruction}</p>
               </div>
             ))}
           </div>
+        </Card>
+
+        {/* Back to Form */}
+        <div className="text-center">
+          <Link href="/form">
+            <Button variant="outline" size="lg">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Create Another Formula
+            </Button>
+          </Link>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
