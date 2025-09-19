@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FlaskConical, Menu, X } from "lucide-react";
+import { FlaskConical, Menu, X, ExternalLink, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
@@ -24,6 +24,11 @@ export function Header() {
   const navigation = [
     { name: "Home", href: "/" },
     { name: "Create Formula", href: "/form" },
+    { 
+      name: "Browse Cosmetics", 
+      href: "https://chemecosmetics.com/product-category/cosmetics/", 
+      external: true 
+    },
   ];
 
   return (
@@ -52,13 +57,21 @@ export function Header() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                target={item.external ? "_blank" : undefined}
+                rel={item.external ? "noopener noreferrer" : undefined}
+                className={`group flex items-center gap-2 text-sm font-medium transition-colors hover:text-blue-600 ${
                   pathname === item.href
                     ? "text-blue-600"
                     : "text-gray-600"
                 }`}
               >
-                {item.name}
+                {item.external && (
+                  <ShoppingBag className="h-4 w-4" />
+                )}
+                <span>{item.name}</span>
+                {item.external && (
+                  <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100 transition-opacity" />
+                )}
               </Link>
             ))}
           </nav>
@@ -94,14 +107,22 @@ export function Header() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`text-sm font-medium px-4 py-2 rounded-md transition-colors ${
+                  target={item.external ? "_blank" : undefined}
+                  rel={item.external ? "noopener noreferrer" : undefined}
+                  className={`group flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-md transition-colors ${
                     pathname === item.href
                       ? "text-blue-600 bg-blue-50"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  {item.name}
+                  {item.external && (
+                    <ShoppingBag className="h-4 w-4" />
+                  )}
+                  <span>{item.name}</span>
+                  {item.external && (
+                    <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100 transition-opacity" />
+                  )}
                 </Link>
               ))}
               <div className="px-4 pt-2">
