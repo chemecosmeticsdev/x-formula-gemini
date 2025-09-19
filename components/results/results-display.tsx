@@ -676,7 +676,7 @@ Requirements:
             <p className="text-muted-foreground text-lg">{formula.description}</p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <Badge variant="secondary" className="mb-2">
                 {formula.type}
@@ -694,12 +694,6 @@ Requirements:
                 {formula.properties.viscosity}
               </Badge>
               <p className="text-sm text-muted-foreground">Viscosity</p>
-            </div>
-            <div className="text-center">
-              <Badge variant="outline" className="mb-2">
-                {formula.cost_estimate}
-              </Badge>
-              <p className="text-sm text-muted-foreground">Est. Cost</p>
             </div>
           </div>
         </Card>
@@ -771,8 +765,8 @@ Requirements:
           </div>
         )}
 
-        {/* Properties, Claims, and Cost Grid */}
-        <div className="grid md:grid-cols-3 gap-6">
+        {/* Properties and Claims Grid */}
+        <div className="grid md:grid-cols-2 gap-6">
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Properties</h3>
             <div className="space-y-3">
@@ -796,16 +790,6 @@ Requirements:
                   <span className="text-sm">{claim}</span>
                 </div>
               ))}
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Cost Analysis</h3>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600 mb-2">{formula.cost_estimate}</div>
-              <div className="text-sm text-muted-foreground">
-                Estimated cost per 100g finished product
-              </div>
             </div>
           </Card>
         </div>
