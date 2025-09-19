@@ -77,7 +77,8 @@ export function FormulaForm() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe your cosmetic product in detail. Include target benefits, skin type, desired texture, key ingredients, pH requirements, and any specific constraints..."
             className="min-h-64 text-base resize-none border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-            style={{ minHeight: '256px' }}
+            style={{ minHeight: '256px', height: '256px' }}
+            rows={10}
             maxLength={2000}
             disabled={isGenerating}
           />
