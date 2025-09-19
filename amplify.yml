@@ -6,13 +6,18 @@ frontend:
         - echo "Installing dependencies with legacy peer deps..."
         - npm install --legacy-peer-deps --no-audit
         - echo "Dependencies installed successfully"
+        - echo "Node version:" && node --version
+        - echo "NPM version:" && npm --version
     build:
       commands:
-        - echo "Building Next.js application in demo mode..."
+        - echo "Building Next.js application for static export..."
         - npm run build
+        - echo "Listing output directory contents..."
+        - ls -la out/ || echo "No out/ directory found"
+        - ls -la .next/ || echo "No .next/ directory found"
         - echo "Build completed successfully"
   artifacts:
-    baseDirectory: .next
+    baseDirectory: out
     files:
       - '**/*'
   cache:
