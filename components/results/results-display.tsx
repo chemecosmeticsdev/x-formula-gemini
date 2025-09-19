@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Printer, Share, ArrowLeft, Loader2 } from "lucide-react";
+import { Download, Printer, Share, ArrowLeft, Loader2, Eye } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -643,7 +643,7 @@ Requirements:
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Your AI-Generated Formula</h1>
@@ -667,53 +667,63 @@ Requirements:
           </div>
         </div>
 
+        {/* Product Overview Card */}
         <Card className="p-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h2 className="text-xl font-semibold mb-2">{formula.name}</h2>
-              <p className="text-muted-foreground mb-4">{formula.description}</p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Badge variant="secondary" className="mb-2">
-                    {formula.type}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">Product Type</p>
-                </div>
-                <div>
-                  <Badge variant="outline" className="mb-2">
-                    {formula.properties.ph}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">pH Range</p>
-                </div>
-                <div>
-                  <Badge variant="outline" className="mb-2">
-                    {formula.properties.viscosity}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">Viscosity</p>
-                </div>
-                <div>
-                  <Badge variant="outline" className="mb-2">
-                    {formula.cost_estimate}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">Est. Cost</p>
-                </div>
-              </div>
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{formula.name}</h2>
+            <p className="text-muted-foreground text-lg">{formula.description}</p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <Badge variant="secondary" className="mb-2">
+                {formula.type}
+              </Badge>
+              <p className="text-sm text-muted-foreground">Product Type</p>
             </div>
-            
-            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-              <Image
-                src={formula.mockup_image}
-                alt={`${formula.name} product mockup`}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-              />
+            <div className="text-center">
+              <Badge variant="outline" className="mb-2">
+                {formula.properties.ph}
+              </Badge>
+              <p className="text-sm text-muted-foreground">pH Range</p>
+            </div>
+            <div className="text-center">
+              <Badge variant="outline" className="mb-2">
+                {formula.properties.viscosity}
+              </Badge>
+              <p className="text-sm text-muted-foreground">Viscosity</p>
+            </div>
+            <div className="text-center">
+              <Badge variant="outline" className="mb-2">
+                {formula.cost_estimate}
+              </Badge>
+              <p className="text-sm text-muted-foreground">Est. Cost</p>
             </div>
           </div>
         </Card>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        {/* Product Mockup Image - Full Width Card */}
+        {formula.mockup_image && (
+          <div className="cosmetics-card p-6 md:col-span-full">
+            <div className="flex items-center gap-2 mb-4">
+              <Eye className="h-5 w-5 text-purple-600" />
+              <h3 className="text-lg font-semibold">Product Mockup</h3>
+            </div>
+            <div className="relative aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden max-w-lg mx-auto">
+              <Image
+                src={formula.mockup_image}
+                alt={`${formula.name} product mockup`}
+                fill
+                className="object-contain p-4"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                priority
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Properties, Claims, and Cost Grid */}
+        <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Properties</h3>
             <div className="space-y-3">
@@ -739,19 +749,17 @@ Requirements:
               ))}
             </div>
           </Card>
-        </div>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Cost Analysis</h3>
-          <div className="bg-muted/50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-lg font-semibold">{formula.cost_estimate}</span>
-              <span className="text-sm text-muted-foreground">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Cost Analysis</h3>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 mb-2">{formula.cost_estimate}</div>
+              <div className="text-sm text-muted-foreground">
                 Estimated cost per 100g finished product
-              </span>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Formula Ingredients</h3>
