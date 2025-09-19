@@ -8,17 +8,19 @@ frontend:
         - echo "Dependencies installed successfully"
         - echo "Environment variables check:"
         - echo "GEMINI_API_KEY is set:" && [ -n "$GEMINI_API_KEY" ] && echo "✓ Yes" || echo "✗ No"
+        - echo "Creating build-time environment file..."
+        - echo "NEXT_PUBLIC_HAS_GEMINI_KEY=$([ -n \"$GEMINI_API_KEY\" ] && echo 'true' || echo 'false')" >> .env.production
         - echo "Node version:" && node --version
         - echo "NPM version:" && npm --version
     build:
       commands:
-        - echo "Building Next.js application with SSR support..."
+        - echo "Building Next.js application for static export..."
         - npm run build
-        - echo "Listing build directory contents..."
-        - ls -la .next/ || echo "No .next/ directory found"
+        - echo "Listing output directory..."
+        - ls -la out/ || echo "No out/ directory found"
         - echo "Build completed successfully"
   artifacts:
-    baseDirectory: .next
+    baseDirectory: out
     files:
       - '**/*'
   cache:

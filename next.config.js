@@ -1,5 +1,6 @@
 /** @type {import("next").NextConfig} */
 const nextConfig = {
+  output: "standalone",
   images: { 
     unoptimized: true 
   },
@@ -8,10 +9,6 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-  },
-  // Enable standalone mode for AWS Amplify
-  experimental: {
-    outputFileTracingRoot: require("path").join(__dirname, "../")
   }
 };
 

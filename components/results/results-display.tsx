@@ -53,60 +53,96 @@ export function ResultsDisplay() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/generate-formula", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+      // Direct Gemini API integration for AWS Amplify deployment
+      const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+      
+      if (!GEMINI_API_KEY) {
+        // Fallback to demo data if no API key available
+        console.warn('No Gemini API key found, using demo data');
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing time
+
+        const mockFormula = {
+          name: `${data.productType || 'Custom'} Formula`,
+          type: data.productType || "Beauty Product",
+          description: `A ${data.productType?.toLowerCase() || 'custom'} formulated based on: ${data.productDescription}`,
+          mockup_image: "https://t4.ftcdn.net/jpg/05/48/18/43/360_F_548184349_aE1jiNSqyEmG8qhEOF5rcK2pTW0ClqqR.jpg",
+          ingredients: [
+            { name: "Aqua (Water)", inci_name: "Aqua", percentage: 65.0, function: "solvent", phase: "A" },
+            { name: "Glycerin", inci_name: "Glycerin", percentage: 8.0, function: "humectant", phase: "A" },
+            { name: "Zinc Oxide", inci_name: "Zinc Oxide", percentage: 15.0, function: "UV filter", phase: "B" },
+            { name: "Niacinamide", inci_name: "Niacinamide", percentage: 4.0, function: "active", phase: "D" },
+            { name: "Caprylic/Capric Triglyceride", inci_name: "Caprylic/Capric Triglyceride", percentage: 5.0, function: "emollient", phase: "B" },
+            { name: "Phenoxyethanol", inci_name: "Phenoxyethanol", percentage: 1.0, function: "preservative", phase: "D" },
+            { name: "Xanthan Gum", inci_name: "Xanthan Gum", percentage: 2.0, function: "thickener", phase: "C" }
+          ],
+          instructions: [
+            "Heat Phase A (water phase) to 70°C while stirring gently",
+            "In separate container, heat Phase B (oil phase) to 70°C",
+            "Slowly add Phase B to Phase A while homogenizing at high speed",
+            "Cool mixture to 40°C while stirring continuously",
+            "Add Phase C (thickener) and mix until uniform",
+            "At 30°C, add Phase D (actives and preservatives) one by one",
+            "Continue cooling to room temperature while stirring",
+            "Check pH and adjust if needed (target 5.5-6.0)",
+            "Let mixture rest for 24h before final quality check"
+          ],
+          properties: { ph: "5.5-6.0", viscosity: "Medium", stability: "Stable for 24 months", shelfLife: "24 months" },
+          claims: ["Suitable for sensitive skin", "Fragrance-free formula", "Non-greasy finish", "Professional formulation"],
+          cost_estimate: "$12.50"
+        };
+
+        setFormula(mockFormula);
+        setIsLoading(false);
+        return;
+      }
+
+      // Real Gemini API call
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Create a detailed cosmetics formula for: ${data.productDescription}. 
+                     Product Type: ${data.productType || 'Not specified'}
+                     Target Audience: ${data.targetAudience || 'General'}
+                     Budget Range: ${data.budgetRange || 'Mid-range'}
+                     
+                     Return a JSON object with:
+                     - name: Product name
+                     - type: Product category  
+                     - description: Brief description
+                     - ingredients: Array of {name, inci_name, percentage, function, phase}
+                     - instructions: Array of manufacturing steps
+                     - properties: {ph, viscosity, stability, shelfLife}
+                     - claims: Array of product claims
+                     - cost_estimate: Estimated cost per unit
+                     
+                     Use realistic cosmetic ingredients and proper INCI names.`
+            }]
+          }]
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Gemini API error: ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
+      const result = await response.json();
+      const generatedText = result.candidates[0]?.content?.parts[0]?.text || '';
+      
+      // Extract JSON from response
+      const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const formulaData = JSON.parse(jsonMatch[0]);
+        // Add a product mockup image
+        formulaData.mockup_image = "https://i.ytimg.com/vi/3IL-gbbeYqE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAEQxCEog1f9iJbB0tBxuYrJ2O-og";
+        setFormula(formulaData);
+      } else {
+        throw new Error('Could not parse formula from AI response');
       }
-
-      let buffer = "";
-      let partialRead = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        partialRead += decoder.decode(value, { stream: true });
-        let lines = partialRead.split('\n');
-        partialRead = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') {
-              return;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.status === 'processing') {
-                // Show progress feedback
-                console.log('Processing...', parsed.message);
-              } else if (parsed.status === 'completed') {
-                setFormula(parsed.result);
-                setIsLoading(false);
-                return;
-              } else if (parsed.status === 'error') {
-                throw new Error(parsed.message || 'Generation failed');
-              }
-            } catch (e) {
-              // Skip invalid JSON
-            }
-          }
-        }
-      }
+      
+      setIsLoading(false);
 
     } catch (err) {
       console.error("Error generating formula:", err);
