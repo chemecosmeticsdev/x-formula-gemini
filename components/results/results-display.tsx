@@ -56,6 +56,13 @@ export function ResultsDisplay() {
       // Direct Gemini API integration for AWS Amplify deployment
       const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
       
+      console.log('Environment check:', {
+        hasPublicKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+        hasPrivateKey: !!process.env.GEMINI_API_KEY,
+        finalKey: !!GEMINI_API_KEY,
+        keyLength: GEMINI_API_KEY ? GEMINI_API_KEY.length : 0
+      });
+      
       if (!GEMINI_API_KEY) {
         // Fallback to demo data if no API key available
         console.warn('No Gemini API key found, using demo data');
@@ -96,8 +103,8 @@ export function ResultsDisplay() {
         return;
       }
 
-      // Real Gemini API call
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+      // Real Gemini API call - using correct v1 endpoint
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,38 +115,55 @@ export function ResultsDisplay() {
                      Target Audience: ${data.targetAudience || 'General'}
                      Budget Range: ${data.budgetRange || 'Mid-range'}
                      
-                     Return a JSON object with:
-                     - name: Product name
-                     - type: Product category  
-                     - description: Brief description
-                     - ingredients: Array of {name, inci_name, percentage, function, phase}
-                     - instructions: Array of manufacturing steps
-                     - properties: {ph, viscosity, stability, shelfLife}
-                     - claims: Array of product claims
-                     - cost_estimate: Estimated cost per unit
+                     Please respond with ONLY a valid JSON object (no markdown formatting) with this exact structure:
+                     {
+                       "name": "Product name",
+                       "type": "Product category",
+                       "description": "Brief description",
+                       "ingredients": [
+                         {"name": "Ingredient name", "inci_name": "INCI name", "percentage": 5.0, "function": "ingredient function", "phase": "A"}
+                       ],
+                       "instructions": ["Step 1", "Step 2", "Step 3"],
+                       "properties": {"ph": "5.5-6.0", "viscosity": "Medium", "stability": "24 months", "shelfLife": "24 months"},
+                       "claims": ["Claim 1", "Claim 2"],
+                       "cost_estimate": "$XX.XX"
+                     }
                      
-                     Use realistic cosmetic ingredients and proper INCI names.`
+                     Use realistic cosmetic ingredients with proper INCI names and realistic percentages that add up to 100%.`
             }]
           }]
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Gemini API Error Response:', errorText);
+        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
       const generatedText = result.candidates[0]?.content?.parts[0]?.text || '';
       
-      // Extract JSON from response
-      const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const formulaData = JSON.parse(jsonMatch[0]);
+      try {
+        // Clean the response - remove markdown formatting if present
+        let cleanJson = generatedText.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
+        
+        // Try to extract JSON if it's embedded in text
+        const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanJson = jsonMatch[0];
+        }
+        
+        const formulaData = JSON.parse(cleanJson);
+        
         // Add a product mockup image
         formulaData.mockup_image = "https://i.ytimg.com/vi/3IL-gbbeYqE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAEQxCEog1f9iJbB0tBxuYrJ2O-og";
+        
         setFormula(formulaData);
-      } else {
-        throw new Error('Could not parse formula from AI response');
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.error('Raw API Response:', generatedText);
+        throw new Error('Could not parse formula from AI response. Please try again.');
       }
       
       setIsLoading(false);

@@ -8,8 +8,11 @@ frontend:
         - echo "Dependencies installed successfully"
         - echo "Environment variables check:"
         - echo "GEMINI_API_KEY is set:" && [ -n "$GEMINI_API_KEY" ] && echo "✓ Yes" || echo "✗ No"
+        - echo "GEMINI_API_KEY length:" && echo ${#GEMINI_API_KEY}
         - echo "Creating build-time environment file..."
-        - echo "NEXT_PUBLIC_HAS_GEMINI_KEY=$([ -n \"$GEMINI_API_KEY\" ] && echo 'true' || echo 'false')" >> .env.production
+        - echo "NEXT_PUBLIC_GEMINI_API_KEY=$GEMINI_API_KEY" >> .env.production
+        - echo "Build environment file created:"
+        - cat .env.production
         - echo "Node version:" && node --version
         - echo "NPM version:" && npm --version
     build:
