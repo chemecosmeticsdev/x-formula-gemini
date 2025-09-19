@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Printer, Share, ArrowLeft, Loader2, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Download, Printer, Share, ArrowLeft, Loader2, Eye, ZoomIn, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -45,6 +46,7 @@ export function ResultsDisplay() {
   const [formula, setFormula] = useState<Formula | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -702,23 +704,70 @@ Requirements:
           </div>
         </Card>
 
-        {/* Product Mockup Image - Full Width Card */}
+        {/* Product Mockup Image - Full Width Card with Modal */}
         {formula.mockup_image && (
           <div className="cosmetics-card p-6 md:col-span-full">
             <div className="flex items-center gap-2 mb-4">
               <Eye className="h-5 w-5 text-purple-600" />
               <h3 className="text-lg font-semibold">Product Mockup</h3>
+              <div className="flex-1" />
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <ZoomIn className="h-4 w-4" />
+                <span className="hidden sm:inline">Click to enlarge</span>
+              </div>
             </div>
-            <div className="relative aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden max-w-lg mx-auto">
-              <Image
-                src={formula.mockup_image}
-                alt={`${formula.name} product mockup`}
-                fill
-                className="object-contain p-4"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                priority
-              />
-            </div>
+            
+            <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+              <DialogTrigger asChild>
+                <div className="relative aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden max-w-lg mx-auto cursor-pointer hover:bg-gray-100 transition-colors group">
+                  <Image
+                    src={formula.mockup_image}
+                    alt={`${formula.name} product mockup`}
+                    fill
+                    className="object-contain p-4 group-hover:scale-105 transition-transform duration-200"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                    <div className="bg-white/90 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <ZoomIn className="h-5 w-5 text-gray-700" />
+                    </div>
+                  </div>
+                </div>
+              </DialogTrigger>
+              
+              <DialogContent className="max-w-4xl w-full p-0 bg-transparent border-0 shadow-none">
+                <div className="relative bg-white rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <div>
+                      <h3 className="text-lg font-semibold">{formula.name}</h3>
+                      <p className="text-sm text-muted-foreground">Product Mockup</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsImageModalOpen(false)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="p-6 bg-gray-50">
+                    <div className="relative w-full h-[70vh] max-h-[600px]">
+                      <Image
+                        src={formula.mockup_image}
+                        alt={`${formula.name} product mockup - full size`}
+                        fill
+                        className="object-contain"
+                        sizes="100vw"
+                        priority
+                      />
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
 
