@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Download, Printer, Share, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
@@ -49,7 +48,6 @@ export function ResultsDisplay() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get stored data and generate formula  
     const storedData = sessionStorage.getItem('formulaRequest');
     console.log('🔍 Stored data check:', storedData ? 'FOUND' : 'MISSING');
     
@@ -58,7 +56,6 @@ export function ResultsDisplay() {
         const data = JSON.parse(storedData);
         console.log('📦 Form data:', data);
         
-        // Transform the stored data to match our FormData interface
         const formData: FormData = {
           productDescription: data.productDescription || data.description || '',
           productType: data.productType,
@@ -68,7 +65,6 @@ export function ResultsDisplay() {
         
         console.log('📦 Transformed form data:', formData);
         
-        // Validate that we have a product description
         if (!formData.productDescription?.trim()) {
           console.error('❌ No product description found in stored data');
           setError('No product description found. Please fill out the form first.');
@@ -83,7 +79,6 @@ export function ResultsDisplay() {
       }
     } else {
       console.warn('⚠️ No formulaRequest data found in sessionStorage');
-      console.log('🔍 Available sessionStorage keys:', Object.keys(sessionStorage));
       setError('No product description found. Please fill out the form first.');
     }
   }, []);
@@ -94,7 +89,6 @@ export function ResultsDisplay() {
       setError(null);
       console.log('🚀 Starting formula generation...');
 
-      // Get API key
       const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
       
       console.log('🔑 Environment check:', {
@@ -145,7 +139,6 @@ export function ResultsDisplay() {
 
       console.log('🤖 Calling Gemini API for formula generation...');
       
-      // Real Gemini API call for formula generation
       const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,10 +180,7 @@ export function ResultsDisplay() {
       const generatedText = result.candidates[0]?.content?.parts[0]?.text || '';
       
       try {
-        // Clean the response - remove markdown formatting if present
         let cleanJson = generatedText.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
-        
-        // Try to extract JSON if it's embedded in text
         const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           cleanJson = jsonMatch[0];
@@ -198,69 +188,11 @@ export function ResultsDisplay() {
         
         const formulaData = JSON.parse(cleanJson);
         
-        // SIMPLE IMAGE GENERATION TEST
-        console.log('🎨 Starting image generation debug...');
-        console.log('🔑 API Key for images:', GEMINI_API_KEY ? 'AVAILABLE' : 'MISSING');
+        // PROPER GEMINI IMAGE GENERATION IMPLEMENTATION
+        console.log('🎨 Starting PROPER Gemini Image generation...');
+        console.log('🔑 API Key available:', !!GEMINI_API_KEY);
         
-        // Test basic API connectivity first
-        console.log('🧪 Testing basic API connectivity...');
-        try {
-          const testResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: 'Hello' }] }]
-            })
-          });
-          console.log('🔍 API connectivity test:', testResponse.status, testResponse.ok ? 'SUCCESS' : 'FAILED');
-          
-          if (testResponse.ok) {
-            console.log('✅ API works! Now testing image generation...');
-            
-            // Try image generation
-            const imagePrompt = `Professional cosmetics product photography: ${formulaData.name} - ${formulaData.type}. Clean white background, luxury packaging, studio lighting.`;
-            console.log('📝 Image prompt:', imagePrompt);
-            
-            const imageResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImage?key=${GEMINI_API_KEY}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                prompt: imagePrompt,
-                imageGenerationConfig: {
-                  aspectRatio: "4:3",
-                  negativePrompt: "blurry, low quality"
-                }
-              })
-            });
-            
-            console.log('📡 Image API response:', imageResponse.status, imageResponse.statusText);
-            
-            if (imageResponse.ok) {
-              const imageResult = await imageResponse.json();
-              console.log('📦 Image response keys:', Object.keys(imageResult));
-              console.log('🖼️ Full image response:', JSON.stringify(imageResult, null, 2));
-              
-              const imageData = imageResult.candidates?.[0]?.image?.bytesBase64Jpeg;
-              if (imageData) {
-                formulaData.mockup_image = `data:image/jpeg;base64,${imageData}`;
-                console.log('✅ SUCCESS: AI-generated image created!');
-              } else {
-                console.warn('❌ No image data in response');
-                formulaData.mockup_image = getIntelligentPlaceholder(formulaData.type);
-              }
-            } else {
-              const errorText = await imageResponse.text();
-              console.error('❌ Image API error:', imageResponse.status, errorText);
-              formulaData.mockup_image = getIntelligentPlaceholder(formulaData.type);
-            }
-          } else {
-            console.error('❌ Basic API test failed');
-            formulaData.mockup_image = getIntelligentPlaceholder(formulaData.type);
-          }
-        } catch (imageError) {
-          console.error('💥 Image generation error:', imageError);
-          formulaData.mockup_image = getIntelligentPlaceholder(formulaData.type);
-        }
+        await generateProductImageWithGemini(formulaData, data, GEMINI_API_KEY);
         
         setFormula(formulaData);
       } catch (parseError) {
@@ -278,16 +210,79 @@ export function ResultsDisplay() {
     }
   };
 
-  function getIntelligentPlaceholder(productType: string) {
-    const type = productType?.toLowerCase() || '';
-    if (type.includes('serum')) {
-      return "https://images.unsplash.com/photo-1620916297593-6e5f6e4c2b27?w=800&h=600&fit=crop&auto=format&q=80";
-    } else if (type.includes('cream')) {
-      return "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
-    } else if (type.includes('oil')) {
-      return "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+  async function generateProductImageWithGemini(formulaData: any, userInput: any, apiKey: string) {
+    console.log('🖼️ Attempting Gemini Imagen API call...');
+    
+    try {
+      const imagePrompt = `Professional cosmetics product photography: elegant ${formulaData.type.toLowerCase()} called "${formulaData.name}". Clean white background, professional studio lighting, luxury packaging, commercial product shot. High quality, professional photography style.`;
+      console.log('📝 Image prompt:', imagePrompt);
+      
+      // CORRECT Gemini Imagen API call according to documentation
+      const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImage';
+      const fullUrl = `${apiUrl}?key=${apiKey}`;
+      
+      console.log('🌐 Calling Gemini Imagen API...');
+      
+      const imageResponse = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: imagePrompt,
+          imageGenerationConfig: {
+            aspectRatio: "4:3",
+            safetyFilterLevel: "BLOCK_ONLY_HIGH",
+            personGeneration: "ALLOW_ADULT"
+          }
+        })
+      });
+
+      console.log('📡 Gemini Imagen API response status:', imageResponse.status, imageResponse.statusText);
+
+      if (imageResponse.ok) {
+        const result = await imageResponse.json();
+        console.log('📦 Gemini Imagen response keys:', Object.keys(result));
+        console.log('🖼️ Full Gemini Imagen response:', JSON.stringify(result, null, 2));
+
+        const imageData = result.candidates?.[0]?.image?.bytesBase64Jpeg;
+        if (imageData) {
+          formulaData.mockup_image = `data:image/jpeg;base64,${imageData}`;
+          console.log('✅ SUCCESS: Gemini Imagen generated image!');
+          return;
+        } else {
+          console.warn('❌ No image data found in Gemini response');
+          console.log('🔍 Candidates structure:', result.candidates);
+        }
+      } else {
+        const errorText = await imageResponse.text();
+        console.error('❌ Gemini Imagen API error:', imageResponse.status, errorText);
+        
+        if (imageResponse.status === 400) {
+          console.error('💡 Bad request - Gemini Imagen API may not support this request format');
+        } else if (imageResponse.status === 403) {
+          console.error('💡 Access denied - API key may not have Imagen permissions');
+        } else if (imageResponse.status === 404) {
+          console.error('💡 Not found - Gemini Imagen API endpoint may not be available');
+        }
+      }
+    } catch (imageError) {
+      console.error('💥 Gemini Imagen API error:', imageError);
     }
-    return "/images/placeholder-mockup.jpg";
+    
+    // Fallback to intelligent placeholder
+    console.log('🔄 Using intelligent placeholder...');
+    const productType = formulaData.type?.toLowerCase() || '';
+    if (productType.includes('serum')) {
+      formulaData.mockup_image = "https://images.unsplash.com/photo-1620916297593-6e5f6e4c2b27?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (productType.includes('cream')) {
+      formulaData.mockup_image = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (productType.includes('oil')) {
+      formulaData.mockup_image = "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+    } else {
+      formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+    }
+    console.log('📸 Using placeholder for product type:', productType);
   }
 
   const handleDownloadPDF = () => {
@@ -385,7 +380,6 @@ export function ResultsDisplay() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Your AI-Generated Formula</h1>
@@ -409,7 +403,6 @@ export function ResultsDisplay() {
           </div>
         </div>
 
-        {/* Product Overview */}
         <Card className="p-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
@@ -456,7 +449,6 @@ export function ResultsDisplay() {
           </div>
         </Card>
 
-        {/* Properties & Claims */}
         <div className="grid md:grid-cols-2 gap-6">
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Properties</h3>
@@ -485,7 +477,6 @@ export function ResultsDisplay() {
           </Card>
         </div>
 
-        {/* Cost Analysis */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Cost Analysis</h3>
           <div className="bg-muted/50 rounded-lg p-4">
@@ -498,7 +489,6 @@ export function ResultsDisplay() {
           </div>
         </Card>
 
-        {/* Ingredients */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Formula Ingredients</h3>
           <div className="overflow-x-auto">
@@ -535,7 +525,6 @@ export function ResultsDisplay() {
           </div>
         </Card>
 
-        {/* Manufacturing Instructions */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Manufacturing Instructions</h3>
           <div className="space-y-3">
@@ -550,7 +539,6 @@ export function ResultsDisplay() {
           </div>
         </Card>
 
-        {/* Back to Form */}
         <div className="text-center">
           <Link href="/form">
             <Button variant="outline" size="lg">
