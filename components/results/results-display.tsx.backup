@@ -160,59 +160,57 @@ export function ResultsDisplay() {
         console.log('🎨 Starting AI product mockup generation...');
         console.log('🔑 API Key available:', !!GEMINI_API_KEY, 'Length:', GEMINI_API_KEY?.length || 0);
         
-        try {
-          const imagePrompt = `Professional cosmetics product photography of "${formulaData.name}" - ${formulaData.type}.
-          
-          Product details: ${formulaData.description}
-          User request: ${data.productDescription}
-          
-          Requirements: High-end cosmetics product photography, clean white background, professional studio lighting, luxury packaging design, premium container, commercial product photography style, sharp focus, professional shadows and highlights.
-          
-          Create a marketable cosmetics product image suitable for e-commerce.`;
+        // For now, let's use a temporary approach and call a dedicated image generation function
+        await generateProductMockupImage(formulaData, data, GEMINI_API_KEY);
 
-          console.log('📝 Image prompt created');
-          
-          const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImage';
-          const fullUrl = apiUrl + '?key=' + GEMINI_API_KEY;
-          
-          const response = await fetch(fullUrl, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              prompt: imagePrompt,
-              imageGenerationConfig: {
-                aspectRatio: "4:3",
-                negativePrompt: "blurry, low quality, text, watermark, logo, amateur, cartoon, anime, drawing, sketch"
-              }
-            })
-          });
-
-          console.log('📡 Image API response status:', response.status);
-          
-          if (response.ok) {
-            const result = await response.json();
-            console.log('📦 Image API response:', result);
+        async function generateProductMockupImage(formula: any, userInput: any, apiKey: string) {
+          try {
+            const imagePrompt = `Professional product photography: "${formula.name}" - ${formula.type}. 
             
-            const imageData = result.candidates?.[0]?.image?.bytesBase64Jpeg;
-            if (imageData) {
-              formulaData.mockup_image = `data:image/jpeg;base64,${imageData}`;
-              console.log('✅ AI image generated successfully!');
+            Details: ${formula.description}
+            User request: ${userInput.productDescription}
+            
+            Style: High-end cosmetics photography, clean background, professional lighting, luxury packaging, ${formula.type.toLowerCase()} container, commercial product shot.`;
+
+            console.log('📝 Generating image with prompt...');
+            
+            const response = await fetch(`https://i.ytimg.com/vi/f0igz-skLUY/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLBecdvcsg_ukQwUJ9ZApGTGC_oyIQ {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: imagePrompt,
+                imageGenerationConfig: {
+                  aspectRatio: "4:3",
+                  negativePrompt: "blurry, low quality, text, amateur, cartoon"
+                }
+              })
+            });
+
+            console.log('📡 Image API response status:', response.status);
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('📦 Image API result keys:', Object.keys(result));
+              console.log('🖼️ Full image response:', JSON.stringify(result, null, 2));
+              
+              const imageData = result.candidates?.[0]?.image?.bytesBase64Jpeg;
+              if (imageData) {
+                formula.mockup_image = `data:image/jpeg;base64,${imageData}`;
+                console.log('✅ Successfully generated AI product mockup!');
+                return;
+              }
             } else {
-              console.warn('❌ No image data in response');
-              formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+              const errorText = await response.text();
+              console.error('❌ Image API error:', response.status, errorText);
             }
-          } else {
-            const errorText = await response.text();
-            console.error('❌ Image API error:', response.status, errorText);
-            formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+            
+          } catch (error) {
+            console.error('💥 Image generation error:', error);
           }
           
-        } catch (error) {
-          console.error('💥 Image generation error:', error);
-          formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+          // Fallback
+          console.warn('🔄 Using fallback image');
+          formula.mockup_image = "/images/placeholder-mockup.jpg";
         }
         
         setFormula(formulaData);
