@@ -1,7 +1,23 @@
 
-import NextAuth from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 
-const handler = NextAuth(authOptions);
+// Demo mode - NextAuth disabled for static deployment
+export async function GET(request: NextRequest) {
+  return NextResponse.json(
+    { 
+      message: "Demo mode - authentication disabled for static deployment",
+      status: "disabled" 
+    },
+    { status: 501 }
+  );
+}
 
-export { handler as GET, handler as POST };
+export async function POST(request: NextRequest) {
+  return NextResponse.json(
+    { 
+      message: "Demo mode - authentication disabled for static deployment",
+      status: "disabled" 
+    },
+    { status: 501 }
+  );
+}

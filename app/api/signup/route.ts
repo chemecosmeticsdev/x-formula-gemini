@@ -1,7 +1,5 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,44 +12,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "User already exists" },
-        { status: 400 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        hashedPassword,
-        firstName: firstName || null,
-        lastName: lastName || null,
-      }
-    });
-
+    // For demo deployment - authentication is disabled
     return NextResponse.json(
       { 
-        message: "User created successfully",
-        userId: user.id 
+        message: "Demo mode - signup disabled. Please use the app without authentication.",
+        userId: "demo-user" 
       },
-      { status: 201 }
+      { status: 200 }
     );
 
   } catch (error) {
     console.error("Signup error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      { error: "Demo mode - authentication disabled" },
+      { status: 501 }
     );
   }
 }
