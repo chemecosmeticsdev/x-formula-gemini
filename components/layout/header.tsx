@@ -25,7 +25,7 @@ export function Header() {
     { name: "Home", href: "/" },
     { name: "Create Formula", href: "/form" },
     { 
-      name: "Browse Cosmetics", 
+      name: "Chemecosmetics.com", 
       href: "https://chemecosmetics.com/product-category/cosmetics/", 
       external: true 
     },
