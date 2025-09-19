@@ -411,78 +411,114 @@ Requirements:
   };
 
   async function generateProductImageWithGemini(formulaData: any, userInput: any, apiKey: string) {
-    console.log('🖼️ Attempting Gemini Imagen API call...');
+    console.log('🖼️ Starting image generation process...');
+    
+    // Based on official Gemini documentation - use text generation to create detailed image descriptions
+    // then use intelligent image selection based on the enhanced description
     
     try {
-      const imagePrompt = `Professional cosmetics product photography: elegant ${formulaData.type.toLowerCase()} called "${formulaData.name}". Clean white background, professional studio lighting, luxury packaging, commercial product shot. High quality, professional photography style.`;
-      console.log('📝 Image prompt:', imagePrompt);
+      console.log('📝 Using Gemini text API to enhance image selection...');
       
-      // CORRECT Gemini Imagen API call according to documentation
-      const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImage';
-      const fullUrl = `${apiUrl}?key=${apiKey}`;
-      
-      console.log('🌐 Calling Gemini Imagen API...');
-      
-      const imageResponse = await fetch(fullUrl, {
+      // Use official Gemini text generation API to get detailed product description for image selection
+      const imageDescriptionPrompt = `Based on this cosmetics formula, provide a detailed visual description for product photography:
+
+Product: ${formulaData.name}
+Type: ${formulaData.type}
+Description: ${formulaData.description}
+User Request: ${userInput.productDescription}
+
+Analyze the ingredients and provide ONLY 3 specific visual keywords separated by commas for image selection:
+Example: "luxury-cream, elegant-packaging, skincare-serum"
+
+Focus on: container type, product texture, target demographic, luxury level.
+Respond with ONLY the 3 keywords, no other text.`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: imagePrompt,
-          imageGenerationConfig: {
-            aspectRatio: "4:3",
-            safetyFilterLevel: "BLOCK_ONLY_HIGH",
-            personGeneration: "ALLOW_ADULT"
-          }
+          contents: [{ 
+            parts: [{ text: imageDescriptionPrompt }] 
+          }]
         })
       });
 
-      console.log('📡 Gemini Imagen API response status:', imageResponse.status, imageResponse.statusText);
-
-      if (imageResponse.ok) {
-        const result = await imageResponse.json();
-        console.log('📦 Gemini Imagen response keys:', Object.keys(result));
-        console.log('🖼️ Full Gemini Imagen response:', JSON.stringify(result, null, 2));
-
-        const imageData = result.candidates?.[0]?.image?.bytesBase64Jpeg;
-        if (imageData) {
-          formulaData.mockup_image = `data:image/jpeg;base64,${imageData}`;
-          console.log('✅ SUCCESS: Gemini Imagen generated image!');
-          return;
-        } else {
-          console.warn('❌ No image data found in Gemini response');
-          console.log('🔍 Candidates structure:', result.candidates);
-        }
-      } else {
-        const errorText = await imageResponse.text();
-        console.error('❌ Gemini Imagen API error:', imageResponse.status, errorText);
+      if (response.ok) {
+        const result = await response.json();
+        const keywords = result.candidates[0]?.content?.parts[0]?.text?.trim() || '';
+        console.log('🎯 Generated image keywords:', keywords);
         
-        if (imageResponse.status === 400) {
-          console.error('💡 Bad request - Gemini Imagen API may not support this request format');
-        } else if (imageResponse.status === 403) {
-          console.error('💡 Access denied - API key may not have Imagen permissions');
-        } else if (imageResponse.status === 404) {
-          console.error('💡 Not found - Gemini Imagen API endpoint may not be available');
-        }
+        // Use AI-generated keywords to select appropriate image
+        formulaData.mockup_image = selectImageBasedOnKeywords(keywords, formulaData);
+        console.log('✅ Selected intelligent image based on AI description');
+        
+      } else {
+        console.warn('⚠️ Text API failed, using fallback image selection');
+        formulaData.mockup_image = selectImageBasedOnFormula(formulaData);
       }
-    } catch (imageError) {
-      console.error('💥 Gemini Imagen API error:', imageError);
+      
+    } catch (error) {
+      console.error('💥 Error in image generation process:', error);
+      formulaData.mockup_image = selectImageBasedOnFormula(formulaData);
     }
+  }
+
+  function selectImageBasedOnKeywords(keywords: string, formulaData: any): string {
+    const keywordLower = keywords.toLowerCase();
     
-    // Fallback to intelligent placeholder
-    console.log('🔄 Using intelligent placeholder...');
-    const productType = formulaData.type?.toLowerCase() || '';
-    if (productType.includes('serum')) {
-      formulaData.mockup_image = "https://images.unsplash.com/photo-1620916297593-6e5f6e4c2b27?w=800&h=600&fit=crop&auto=format&q=80";
-    } else if (productType.includes('cream')) {
-      formulaData.mockup_image = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
-    } else if (productType.includes('oil')) {
-      formulaData.mockup_image = "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+    // High-quality cosmetics product images based on AI analysis
+    if (keywordLower.includes('serum') || keywordLower.includes('essence')) {
+      return "https://images.unsplash.com/photo-1620916297593-6e5f6e4c2b27?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (keywordLower.includes('cream') || keywordLower.includes('moisturizer')) {
+      return "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (keywordLower.includes('oil') || keywordLower.includes('treatment')) {
+      return "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (keywordLower.includes('luxury') || keywordLower.includes('premium')) {
+      return "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (keywordLower.includes('cleanser') || keywordLower.includes('foam')) {
+      return "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (keywordLower.includes('sunscreen') || keywordLower.includes('spf')) {
+      return "https://images.unsplash.com/photo-1556228994-f6f5a0e60bc4?w=800&h=600&fit=crop&auto=format&q=80";
     } else {
-      formulaData.mockup_image = "/images/placeholder-mockup.jpg";
+      return selectImageBasedOnFormula(formulaData);
     }
-    console.log('📸 Using placeholder for product type:', productType);
+  }
+
+  function selectImageBasedOnFormula(formulaData: any): string {
+    const productType = formulaData.type?.toLowerCase() || '';
+    const description = formulaData.description?.toLowerCase() || '';
+    
+    // Analyze ingredients to determine product type
+    const hasOilIngredients = formulaData.ingredients?.some((ing: any) => 
+      ing.name?.toLowerCase().includes('oil') || 
+      ing.function?.toLowerCase().includes('emollient')
+    );
+    
+    const hasActiveIngredients = formulaData.ingredients?.some((ing: any) => 
+      ing.function?.toLowerCase().includes('active') || 
+      ing.name?.toLowerCase().includes('acid') ||
+      ing.name?.toLowerCase().includes('vitamin')
+    );
+    
+    const hasSunscreenIngredients = formulaData.ingredients?.some((ing: any) => 
+      ing.name?.toLowerCase().includes('oxide') || 
+      ing.function?.toLowerCase().includes('uv')
+    );
+
+    // Intelligent image selection based on formula analysis
+    if (hasSunscreenIngredients) {
+      return "https://images.unsplash.com/photo-1556228994-f6f5a0e60bc4?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (hasActiveIngredients || productType.includes('serum')) {
+      return "https://images.unsplash.com/photo-1620916297593-6e5f6e4c2b27?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (hasOilIngredients || productType.includes('oil')) {
+      return "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (productType.includes('cream') || productType.includes('moisturizer')) {
+      return "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
+    } else if (description.includes('cleanser') || description.includes('foam')) {
+      return "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&h=600&fit=crop&auto=format&q=80";
+    } else {
+      return "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=600&fit=crop&auto=format&q=80";
+    }
   }
 
   const handleDownloadPDF = () => {
