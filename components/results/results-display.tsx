@@ -49,21 +49,41 @@ export function ResultsDisplay() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get stored data and generate formula
-    const storedData = sessionStorage.getItem('formData');
+    // Get stored data and generate formula  
+    const storedData = sessionStorage.getItem('formulaRequest');
     console.log('🔍 Stored data check:', storedData ? 'FOUND' : 'MISSING');
     
     if (storedData) {
       try {
-        const data = JSON.parse(storedData) as FormData;
+        const data = JSON.parse(storedData);
         console.log('📦 Form data:', data);
-        generateFormula(data);
+        
+        // Transform the stored data to match our FormData interface
+        const formData: FormData = {
+          productDescription: data.productDescription || data.description || '',
+          productType: data.productType,
+          targetAudience: data.targetAudience,
+          budgetRange: data.budgetRange
+        };
+        
+        console.log('📦 Transformed form data:', formData);
+        
+        // Validate that we have a product description
+        if (!formData.productDescription?.trim()) {
+          console.error('❌ No product description found in stored data');
+          setError('No product description found. Please fill out the form first.');
+          return;
+        }
+        
+        console.log('✅ Product description found, starting generation...');
+        generateFormula(formData);
       } catch (err) {
         console.error('❌ Error parsing stored data:', err);
         setError('Failed to retrieve form data');
       }
     } else {
-      console.warn('⚠️ No form data found in sessionStorage');
+      console.warn('⚠️ No formulaRequest data found in sessionStorage');
+      console.log('🔍 Available sessionStorage keys:', Object.keys(sessionStorage));
       setError('No product description found. Please fill out the form first.');
     }
   }, []);
