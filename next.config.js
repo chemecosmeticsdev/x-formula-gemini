@@ -1,7 +1,5 @@
 /** @type {import("next").NextConfig} */
 const nextConfig = {
-  output: "export",
-  trailingSlash: true,
   images: { 
     unoptimized: true 
   },
@@ -10,6 +8,10 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // Enable standalone mode for AWS Amplify
+  experimental: {
+    outputFileTracingRoot: require("path").join(__dirname, "../")
   }
 };
 

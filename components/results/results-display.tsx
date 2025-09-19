@@ -53,95 +53,60 @@ export function ResultsDisplay() {
       setIsLoading(true);
       setError(null);
 
-      // Demo mode - simulate AI generation with mock data
-      await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing time
-
-      const mockFormula = {
-        name: "Hydra-Glow Pause Cream",
-        type: "Face Cream",
-        description: "A lightweight, hydrating daily moisturizer for sensitive skin with SPF 30 and anti-pollution claims. Perfect for Bangkok residents aged 25-35.",
-        mockup_image: "https://pixpine.com/wp-content/uploads/2024/05/Clear-Cosmetic-Cream-Jar-Mockup-2-6910.jpg",
-        ingredients: [
-          {
-            name: "Aqua (Water)",
-            inci_name: "Aqua",
-            percentage: 65.0,
-            function: "solvent",
-            phase: "A"
-          },
-          {
-            name: "Glycerin",
-            inci_name: "Glycerin",
-            percentage: 8.0,
-            function: "humectant",
-            phase: "A"
-          },
-          {
-            name: "Zinc Oxide",
-            inci_name: "Zinc Oxide",
-            percentage: 15.0,
-            function: "UV filter",
-            phase: "B"
-          },
-          {
-            name: "Niacinamide",
-            inci_name: "Niacinamide",
-            percentage: 4.0,
-            function: "active",
-            phase: "D"
-          },
-          {
-            name: "Caprylic/Capric Triglyceride",
-            inci_name: "Caprylic/Capric Triglyceride",
-            percentage: 5.0,
-            function: "emollient",
-            phase: "B"
-          },
-          {
-            name: "Phenoxyethanol",
-            inci_name: "Phenoxyethanol",
-            percentage: 1.0,
-            function: "preservative",
-            phase: "D"
-          },
-          {
-            name: "Xanthan Gum",
-            inci_name: "Xanthan Gum",
-            percentage: 2.0,
-            function: "thickener",
-            phase: "C"
-          }
-        ],
-        instructions: [
-          "Heat Phase A (water phase) to 70°C while stirring gently",
-          "In separate container, heat Phase B (oil phase) to 70°C",
-          "Slowly add Phase B to Phase A while homogenizing at high speed",
-          "Cool mixture to 40°C while stirring continuously",
-          "Add Phase C (thickener) and mix until uniform",
-          "At 30°C, add Phase D (actives and preservatives) one by one",
-          "Continue cooling to room temperature while stirring",
-          "Check pH and adjust if needed (target 5.5-6.0)",
-          "Let mixture rest for 24h before final quality check"
-        ],
-        properties: {
-          ph: "5.5-6.0",
-          viscosity: "Medium",
-          stability: "Stable for 24 months",
-          shelfLife: "24 months"
+      const response = await fetch("/api/generate-formula", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        claims: [
-          "SPF 30 broad spectrum protection",
-          "Suitable for sensitive skin",
-          "Fragrance-free formula",
-          "Reef-safe sunscreen",
-          "Non-greasy finish",
-          "Anti-pollution protection"
-        ],
-        cost_estimate: "$12.50"
-      };
+        body: JSON.stringify(data),
+      });
 
-      setFormula(mockFormula);
-      setIsLoading(false);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      let buffer = "";
+      let partialRead = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        partialRead += decoder.decode(value, { stream: true });
+        let lines = partialRead.split('\n');
+        partialRead = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              return;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.status === 'processing') {
+                // Show progress feedback
+                console.log('Processing...', parsed.message);
+              } else if (parsed.status === 'completed') {
+                setFormula(parsed.result);
+                setIsLoading(false);
+                return;
+              } else if (parsed.status === 'error') {
+                throw new Error(parsed.message || 'Generation failed');
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
 
     } catch (err) {
       console.error("Error generating formula:", err);
