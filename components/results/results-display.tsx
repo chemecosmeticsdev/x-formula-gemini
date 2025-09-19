@@ -70,9 +70,9 @@ export function ResultsDisplay() {
 
         const mockFormula = {
           name: `${data.productType || 'Custom'} Formula`,
-          type: data.productType || "Beauty Product",
+          type: data.productType || "Beauty Product", 
           description: `A ${data.productType?.toLowerCase() || 'custom'} formulated based on: ${data.productDescription}`,
-          mockup_image: "https://t4.ftcdn.net/jpg/05/48/18/43/360_F_548184349_aE1jiNSqyEmG8qhEOF5rcK2pTW0ClqqR.jpg",
+          mockup_image: "https://i.ytimg.com/vi/chkgWO6pg_0/maxresdefault.jpg",
           ingredients: [
             { name: "Aqua (Water)", inci_name: "Aqua", percentage: 65.0, function: "solvent", phase: "A" },
             { name: "Glycerin", inci_name: "Glycerin", percentage: 8.0, function: "humectant", phase: "A" },
@@ -156,8 +156,35 @@ export function ResultsDisplay() {
         
         const formulaData = JSON.parse(cleanJson);
         
-        // Add a product mockup image
-        formulaData.mockup_image = "https://i.ytimg.com/vi/3IL-gbbeYqE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAEQxCEog1f9iJbB0tBxuYrJ2O-og";
+        // Generate relevant product mockup image based on product type
+        const productType = formulaData.type?.toLowerCase() || '';
+        const productName = formulaData.name?.toLowerCase() || '';
+        let mockupImage = "/images/cosmetics-mockup.jpg"; // Default - use uploaded reference image
+        
+        // Select specific mockup based on product type
+        if (productType.includes('serum') || productName.includes('serum')) {
+          // High-quality serum bottle mockups
+          const serumImages = [
+            "https://t3.ftcdn.net/jpg/02/96/76/22/360_F_296762241_6KgNAGgVqAGUXsSK5NYl9laz1uaZdrHZ.jpg",
+            "https://i.pinimg.com/736x/a7/35/be/a735be85254d2a1ea4cad934a1488cb7.jpg",
+            "https://t3.ftcdn.net/jpg/03/61/84/46/360_F_361844698_NJKwm3Zjb6tCIM2BnO4yvdyynQ7JLibY.jpg"
+          ];
+          mockupImage = serumImages[Math.floor(Math.random() * serumImages.length)];
+        } else if (productType.includes('cream') || productType.includes('moisturizer')) {
+          mockupImage = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
+        } else if (productType.includes('cleanser') || productType.includes('wash')) {
+          mockupImage = "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=800&h=600&fit=crop&auto=format&q=80";
+        } else if (productType.includes('sunscreen') || productType.includes('spf')) {
+          mockupImage = "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=800&h=600&fit=crop&auto=format&q=80";
+        } else if (productType.includes('toner') || productType.includes('essence')) {
+          mockupImage = "https://i.ytimg.com/vi/2RL66d0-O2A/sddefault.jpg";
+        } else if (productType.includes('mask')) {
+          mockupImage = "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=800&h=600&fit=crop&auto=format&q=80";
+        } else if (productType.includes('oil')) {
+          mockupImage = "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+        }
+        
+        formulaData.mockup_image = mockupImage;
         
         setFormula(formulaData);
       } catch (parseError) {
