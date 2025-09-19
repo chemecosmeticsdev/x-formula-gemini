@@ -411,56 +411,84 @@ Requirements:
   };
 
   async function generateProductImageWithGemini(formulaData: any, userInput: any, apiKey: string) {
-    console.log('🖼️ Starting image generation process...');
-    
-    // Based on official Gemini documentation - use text generation to create detailed image descriptions
-    // then use intelligent image selection based on the enhanced description
+    console.log('🖼️ Starting REAL Gemini image generation...');
     
     try {
-      console.log('📝 Using Gemini text API to enhance image selection...');
+      // CORRECT Gemini Image Generation API based on successful test
+      const imagePrompt = `Professional cosmetics product photography: elegant ${formulaData.type.toLowerCase()} called "${formulaData.name}". Clean white background, professional studio lighting, luxury packaging, commercial product shot. High quality, professional photography style.`;
+      console.log('📝 Image prompt:', imagePrompt);
       
-      // Use official Gemini text generation API to get detailed product description for image selection
-      const imageDescriptionPrompt = `Based on this cosmetics formula, provide a detailed visual description for product photography:
-
-Product: ${formulaData.name}
-Type: ${formulaData.type}
-Description: ${formulaData.description}
-User Request: ${userInput.productDescription}
-
-Analyze the ingredients and provide ONLY 3 specific visual keywords separated by commas for image selection:
-Example: "luxury-cream, elegant-packaging, skincare-serum"
-
-Focus on: container type, product texture, target demographic, luxury level.
-Respond with ONLY the 3 keywords, no other text.`;
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          contents: [{ 
-            parts: [{ text: imageDescriptionPrompt }] 
+          "contents": [{
+            "parts": [
+              {"text": imagePrompt}
+            ]
           }]
         })
       });
 
+      console.log('📡 Gemini Image API response:', response.status, response.statusText);
+
       if (response.ok) {
         const result = await response.json();
-        const keywords = result.candidates[0]?.content?.parts[0]?.text?.trim() || '';
-        console.log('🎯 Generated image keywords:', keywords);
+        console.log('📦 Response structure:', Object.keys(result));
         
-        // Use AI-generated keywords to select appropriate image
-        formulaData.mockup_image = selectImageBasedOnKeywords(keywords, formulaData);
-        console.log('✅ Selected intelligent image based on AI description');
+        // Check for image data in correct location based on test results
+        const candidate = result.candidates?.[0];
+        if (candidate?.content?.parts) {
+          console.log('🔍 Found parts, checking for image data...');
+          
+          for (let i = 0; i < candidate.content.parts.length; i++) {
+            const part = candidate.content.parts[i];
+            
+            // Check for image data in inlineData field
+            if (part.inlineData && part.inlineData.data) {
+              console.log('✅ SUCCESS: Found Gemini-generated image!');
+              console.log('🎯 MIME type:', part.inlineData.mimeType);
+              console.log('📏 Image data length:', part.inlineData.data.length);
+              
+              // Use the actual generated image
+              const mimeType = part.inlineData.mimeType || 'image/png';
+              formulaData.mockup_image = `data:${mimeType};base64,${part.inlineData.data}`;
+              
+              console.log('🎨 Real AI-generated product image set!');
+              return;
+            }
+          }
+          
+          console.warn('⚠️ No image data found in response parts');
+          console.log('🔍 Parts structure:', candidate.content.parts.map((p: any) => Object.keys(p)));
+        } else {
+          console.warn('⚠️ No candidate content found');
+        }
+        
+        // Log full response for debugging
+        console.log('📄 Full response for analysis:', JSON.stringify(result, null, 2));
         
       } else {
-        console.warn('⚠️ Text API failed, using fallback image selection');
-        formulaData.mockup_image = selectImageBasedOnFormula(formulaData);
+        const errorText = await response.text();
+        console.error('❌ Gemini Image API error:', response.status, errorText);
+        
+        if (response.status === 403) {
+          console.error('💡 Access denied - Check API key permissions for image generation');
+        } else if (response.status === 404) {
+          console.error('💡 Model not found - gemini-2.5-flash-image-preview may not be available');
+        }
       }
       
     } catch (error) {
-      console.error('💥 Error in image generation process:', error);
-      formulaData.mockup_image = selectImageBasedOnFormula(formulaData);
+      console.error('💥 Gemini Image API error:', error);
     }
+    
+    // Fallback to intelligent image selection
+    console.log('🔄 Using intelligent fallback image selection...');
+    formulaData.mockup_image = selectImageBasedOnFormula(formulaData);
   }
 
   function selectImageBasedOnKeywords(keywords: string, formulaData: any): string {
