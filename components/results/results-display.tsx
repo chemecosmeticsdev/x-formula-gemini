@@ -156,35 +156,58 @@ export function ResultsDisplay() {
         
         const formulaData = JSON.parse(cleanJson);
         
-        // Generate relevant product mockup image based on product type
-        const productType = formulaData.type?.toLowerCase() || '';
-        const productName = formulaData.name?.toLowerCase() || '';
-        let mockupImage = "/images/cosmetics-mockup.jpg"; // Default - use uploaded reference image
-        
-        // Select specific mockup based on product type
-        if (productType.includes('serum') || productName.includes('serum')) {
-          // High-quality serum bottle mockups
-          const serumImages = [
-            "https://t3.ftcdn.net/jpg/02/96/76/22/360_F_296762241_6KgNAGgVqAGUXsSK5NYl9laz1uaZdrHZ.jpg",
-            "https://i.pinimg.com/736x/a7/35/be/a735be85254d2a1ea4cad934a1488cb7.jpg",
-            "https://t3.ftcdn.net/jpg/03/61/84/46/360_F_361844698_NJKwm3Zjb6tCIM2BnO4yvdyynQ7JLibY.jpg"
-          ];
-          mockupImage = serumImages[Math.floor(Math.random() * serumImages.length)];
-        } else if (productType.includes('cream') || productType.includes('moisturizer')) {
-          mockupImage = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop&auto=format&q=80";
-        } else if (productType.includes('cleanser') || productType.includes('wash')) {
-          mockupImage = "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=800&h=600&fit=crop&auto=format&q=80";
-        } else if (productType.includes('sunscreen') || productType.includes('spf')) {
-          mockupImage = "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=800&h=600&fit=crop&auto=format&q=80";
-        } else if (productType.includes('toner') || productType.includes('essence')) {
-          mockupImage = "https://i.ytimg.com/vi/2RL66d0-O2A/sddefault.jpg";
-        } else if (productType.includes('mask')) {
-          mockupImage = "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=800&h=600&fit=crop&auto=format&q=80";
-        } else if (productType.includes('oil')) {
-          mockupImage = "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&h=600&fit=crop&auto=format&q=80";
+        // Generate AI product mockup image using Gemini Image Generation API
+        console.log('🎨 Generating AI product mockup image...');
+        try {
+          const imagePrompt = `Create a professional product mockup photo for a cosmetics product called "${formulaData.name}". 
+          Product type: ${formulaData.type}
+          Description: ${formulaData.description}
+          Original user request: ${data.productDescription}
+          
+          Style requirements:
+          - Professional cosmetics product photography
+          - Clean, minimalist background (white or neutral)
+          - High-quality luxury cosmetics packaging
+          - Proper lighting and shadows
+          - Product should look premium and appealing
+          - Realistic product container/bottle/jar appropriate for the product type
+          - Professional studio photography style
+          - Focus on the product container/packaging
+          
+          The image should look like a professional cosmetics brand product shot suitable for marketing materials.`;
+
+          const imageResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-001:generateImage?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: imagePrompt,
+              imageGenerationConfig: {
+                aspectRatio: "4:3",
+                negativePrompt: "blurry, low quality, unprofessional, amateur, cartoon, anime, drawing, sketch"
+              }
+            })
+          });
+
+          if (imageResponse.ok) {
+            const imageResult = await imageResponse.json();
+            console.log('Image API Response:', imageResult);
+            
+            if (imageResult.candidates && imageResult.candidates[0]?.image?.bytesBase64Jpeg) {
+              formulaData.mockup_image = `data:image/jpeg;base64,${imageResult.candidates[0].image.bytesBase64Jpeg}`;
+              console.log('✅ AI-generated product mockup created successfully');
+            } else {
+              console.warn('No image data in response, using fallback');
+              formulaData.mockup_image = "/images/cosmetics-mockup.jpg";
+            }
+          } else {
+            const errorText = await imageResponse.text();
+            console.error('Image generation API error:', imageResponse.status, errorText);
+            formulaData.mockup_image = "/images/cosmetics-mockup.jpg";
+          }
+        } catch (imageError) {
+          console.error('Error generating product mockup:', imageError);
+          formulaData.mockup_image = "/images/cosmetics-mockup.jpg"; // Fallback
         }
-        
-        formulaData.mockup_image = mockupImage;
         
         setFormula(formulaData);
       } catch (parseError) {
